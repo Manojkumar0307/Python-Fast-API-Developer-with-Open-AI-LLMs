@@ -1,11 +1,10 @@
 from flask import Flask, request, jsonify, render_template_string
 from werkzeug.utils import secure_filename
-import fitz
+import fitz  
 import os
 import openai
 import uuid
 import re
-import logging
 from dotenv import load_dotenv
 import os
 
@@ -14,8 +13,10 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Configuration
+# Use environment variables for sensitive information
 openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Initialize global variables
 pdf_texts = {}
 pdf_chunks = []
 
@@ -24,19 +25,78 @@ html_template = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI...LLM Chatbot (कुछ भी मांगो)</title>
+    <title>AI...LLM Chatbot </title>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f9; color: #333; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
-        h1 { color: #4CAF50; }
-        form { background: #fff; padding: 20px; margin: 20px 0; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); border-radius: 8px; width: 300px; }
-        input[type="file"], input[type="text"], input[type="submit"] { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
-        input[type="submit"] { background-color: #4CAF50; color: #fff; border: none; cursor: pointer; }
-        input[type="submit"]:hover { background-color: #45a049; }
-        #message { margin-top: 20px; padding: 10px; border-radius: 4px; display: none; background: #e0f7fa; }
-        #response { margin-top: 20px; padding: 20px; border-radius: 8px; background: #e0f7fa; width: 80%; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
-        .response-content { white-space: pre-wrap; }
-        #reset-button { display: none; margin-top: 20px; padding: 10px; background-color: #f44336; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
-        #reset-button:hover { background-color: #e53935; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #4CAF50;
+        }
+        form {
+            background: #fff;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            width: 300px;
+        }
+        input[type="file"],
+        input[type="text"],
+        input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        input[type="submit"] {
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        #message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+            background: #e0f7fa;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background: #e0f7fa;
+            width: 80%;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .response-content {
+            white-space: pre-wrap;
+        }
+        #reset-button {
+            display: none;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f44336;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #reset-button:hover {
+            background-color: #e53935;
+        }
     </style>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
@@ -86,7 +146,7 @@ html_template = """
     </script>
 </head>
 <body>
-    <h1>AI...LLM Chatbot (कुछ भी मांगो)</h1>
+    <h1>AI...LLM Chatbot </h1>
     <form action="/upload" enctype="multipart/form-data" method="post">
         <input type="file" name="file">
         <input type="submit" value="Upload PDF">
@@ -120,15 +180,17 @@ def upload_pdf():
         filename = secure_filename(file.filename)
         file_id = str(uuid.uuid4())
         file_path = os.path.join('uploads', filename)
+        
         os.makedirs('uploads', exist_ok=True)
         file.save(file_path)
-        pdf_text = extract_text_from_pdf(file_path)
-        pdf_texts[file_id] = pdf_text
         
-        global pdf_chunks
-        pdf_chunks = split_text_into_chunks(pdf_text)
+        try:
+            pdf_text = extract_text_from_pdf(file_path)
+            pdf_texts[file_id] = pdf_text
+            pdf_chunks.extend(split_text_into_chunks(pdf_text))
+        finally:
+            os.remove(file_path)
         
-        os.remove(file_path)
         return jsonify({"message": "PDF uploaded and text extracted successfully.", "file_id": file_id})
 
 def extract_text_from_pdf(file_path: str) -> str:
@@ -159,7 +221,7 @@ def retrieve_relevant_chunks(query: str) -> list:
     for chunk in pdf_chunks:
         if re.search(re.escape(query), chunk, re.IGNORECASE):
             relevant_chunks.append(chunk)
-    return relevant_chunks[:5]  
+    return relevant_chunks[:5]
 
 def get_llm_response(query: str, context: str) -> str:
     response = openai.ChatCompletion.create(
